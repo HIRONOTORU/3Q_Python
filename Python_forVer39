@@ -1,0 +1,147 @@
+import time
+import re
+import subprocess
+from subprocess import PIPE
+
+import urllib.request
+from xml.etree.ElementTree import ElementTree
+
+import serial
+
+from PIL import Image
+
+ARG = "WEB"
+ARG = "COMMAND"
+
+ADDRESS = "localhost"
+WEBPORT = "9999"
+WEBPORT = "8080"
+MAPPING = "ssenew"
+MAPPING = "disaster"
+R_PARAM = "qzqsmdata"
+
+URL = "http://" + ADDRESS + ":" + WEBPORT + "/" + MAPPING + "?" + R_PARAM + "=" 
+
+EXEC_COMMAND = r"c:\Users\thiro\IdeaProjects\qzqsmcli\main.bat"
+
+COM = "COM3"
+BITRATE = 115200
+
+imgfilename = "通行止.jpg"
+imgfilename = "tsunamidisp.jpg"
+imgfilename = "tsunamidisp_RU.jpg"
+imgfilename = "tsunamidisp_RU_f.jpg"
+
+disastername = "Marine"
+disastername = "Tsunami"
+disastercmpstr = "disasterCategory=" + disastername
+
+try:
+    ser = serial.Serial(COM, BITRATE, timeout=0.1)
+
+except:
+    print("no serial")
+    
+def end():
+    ser.close()
+    exit(0)
+
+def imgdisp():
+
+    im = Image.open(imgfilename)
+    # print(im.format, im.size, im.mode)
+
+    im.show()
+
+    time.sleep(3.5)
+
+    return
+
+def command(qzqsmdata):
+
+    command_do = EXEC_COMMAND + " " + qzqsmdata
+
+    proc = subprocess.run(command_do, shell=True, stdout=PIPE, stderr=PIPE, text=True)
+    resultstr = proc.stdout
+
+    if True:
+        print(resultstr)
+
+    resultcmpstr = re.search(disastercmpstr, resultstr)  
+    if resultcmpstr == None:
+        return
+
+    imgdisp()
+    end()
+
+def sendweb(qzqsmdata):
+    sendurl = URL + qzqsmdata
+    try:
+        if True:
+            print("Send QZQSMDATA:" + qzqsmdata)
+            print("+============================================================================+")
+            
+        with urllib.request.urlopen(sendurl) as f:
+
+            retstr = f.read()
+            print(retstr.decode())
+
+            return
+
+    except urllib.error.URLError as e:
+        print(e.reason)
+
+def mainloop(ARG):
+    while(True):
+        time.sleep(0.5)
+
+        line = ser.readall().decode()
+        #line = "$QZQSM,56,53ADE58C7680018003008A500050000F1900F50F2D000000000000133471558*03" # for Typhoon Test
+        #line = "$QZQSM,56,9AAFAB9ED64007D1F465F841F192000802DFB300F7ED004FFFFFA0100000004*FF" # for Tsunami Test
+        #line = "$QZQSM,56,C6ADCE7C008007C00C0CB89400B4C637FB26269BCC3103ACA00000100000004*FF" # for AshFall Test 
+        if len(line) == 0:
+            continue
+
+        if True:
+            print(line)
+
+        startstr = re.search(r"QZQSM", line)  
+        if startstr == None:
+            continue
+
+        s = re.split('[,*]', line[startstr.start():])
+
+        if re.match(r"53|9A|C6", s[2]) == None:
+            continue
+
+        qzqsmdata = s[2]
+
+        if ARG == "WEB":
+            sendweb(qzqsmdata)
+        
+        if ARG == "COMMAND":
+            command(qzqsmdata)
+
+# start
+if __name__ == '__main__':
+    mainloop(ARG)
+
+
+・MT43変換SDK利用システム　Javaによる変換コマンド　（前期WebAPI実装したものをコマンド化）
+
+package com.company;
+
+import jp.ac.aiit.pbl.QZQSMDecoder;
+import jp.ac.aiit.pbl.disaster.Disaster;
+
+public class Main {
+    public static void main(String[] args) {
+        if ( args.length != 1 ){
+            System.out.println("Usage:");
+            return;
+        }
+        QZQSMDecoder qzqsmDecoder = new QZQSMDecoder();
+        Disaster disaster = qzqsmDecoder.decode(args[0]);
+        System.out.println(disaster.toString());
+    }
+}
